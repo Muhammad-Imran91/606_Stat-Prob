@@ -1,0 +1,157 @@
+---
+title: "Lab 2: Intro to data"
+author: "Muhammad Imran"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+```
+
+### Exercise 1
+Look carefully at these three histograms. How do they compare? Are features revealed in one that are obscured in another?
+
+Answer: The three histograms show the same distribution of departure delays, but the choice of bin width changes how much detail is visible. The histogram with a small bin width (15 minutes) provides more detail and makes features such as the strong right skew and clusters of delays easier to see. However, it can also look somewhat noisy. The histogram with a very large bin width (150 minutes) is smoother and gives a general view of the distribution, but it hides important details and smaller patterns. Therefore, the histogram with a moderate bin width provides a useful balance between detail and overall shape.
+
+
+### Exercise 2
+Create a new data frame that includes flights headed to SFO in February, and save this data frame as sfo_feb_flights. How many flights meet these criteria?
+
+```{r SFO flights in February}
+data(nycflights)
+
+sfo_feb_flights <- nycflights %>%
+  filter(dest == "SFO", month == 2)
+
+nrow(sfo_feb_flights)
+sfo_feb_flights
+```
+This shows that we have 68 flights to SFO in february
+
+### Exercise 3
+Describe the distribution of arrival delays using a histogram and appropriate summary statistics.
+
+
+
+```{r plot-prop-boys-arbuthnot}
+ggplot(data = sfo_feb_flights, aes(x = arr_delay)) +
+  geom_histogram(binwidth = 10)
+```
+
+For Summary Statistics:
+
+```{r}
+sfo_feb_flights %>%
+  summarise(
+    mean_arr = mean(arr_delay, na.rm = TRUE),
+    median_arr = median(arr_delay, na.rm = TRUE),
+    sd_arr = sd(arr_delay, na.rm = TRUE),
+    IQR_arr = IQR(arr_delay, na.rm = TRUE),
+    min_arr = min(arr_delay, na.rm = TRUE),
+    max_arr = max(arr_delay, na.rm = TRUE)
+  )
+```
+The distribution of arrival delays is right-skewed. Most flights have relatively small or negative arrival delays, while a smaller number have substantially larger delays. Because of the skewness, the median and IQR are appropriate measures of center and spread.
+
+### Exercise 4
+Calculate the median and interquartile range for arr_delay, grouped by carrier. Which carrier has the most variable arrival delays?
+
+```{r Arrival delays by carrier}
+sfo_feb_flights %>%
+  group_by(carrier) %>%
+  summarise(
+    median_arr = median(arr_delay, na.rm = TRUE),
+    IQR_arr = IQR(arr_delay, na.rm = TRUE),
+    n_flights = n()
+  ) %>%
+  arrange(desc(IQR_arr))
+```
+
+Delta (DL) and United Airlines (UA) have the most variable arrival delays because they have the largest interquartile range, approximately 22 minutes. A larger IQR indicates greater variability in the middle 50% of arrival delays.
+
+### Exercise 5
+Suppose you really dislike departure delays and you want to schedule your travel in a month that minimizes your potential departure delay leaving NYC. One option is to choose the month with the lowest mean departure delay. Another option is to choose the month with the lowest median departure delay. What are the pros and cons of these two choices?
+
+```{r Departure delays by month}
+nycflights %>%
+  group_by(month) %>%
+  summarise(
+    mean_dd = mean(dep_delay, na.rm = TRUE)
+  ) %>%
+  arrange(desc(mean_dd))
+```
+July has the highest average departure delay.
+
+Question
+
+What are the pros and cons of choosing a month based on the mean versus the median?
+
+Answer: The mean uses all observations and is sensitive to unusually large delays. The median is less affected by extreme values and therefore gives a better indication of the typical delay when the distribution is skewed.
+
+### Exercise 6
+If you were selecting an airport simply based on on time departure percentage, which NYC airport would you choose to fly out of?
+
+```{r On-time departure rate}
+nycflights <- nycflights %>%
+  mutate(
+    dep_type = ifelse(dep_delay < 5, "on time", "delayed")
+  )
+```
+
+```{r}
+nycflights %>%
+  group_by(origin) %>%
+  summarise(
+    ot_dep_rate = sum(dep_type == "on time") / n()
+  ) %>%
+  arrange(desc(ot_dep_rate))
+```
+If I were selecting an airport based only on the percentage of flights departing on time, I would choose LaGuardia Airport (LGA). It has the highest on-time departure rate at approximately 72.8%, compared with 69.4% for JFK and 63.7% for EWR.
+
+### Exercise 7
+A new variable, avg_speed, was added to the nycflights data frame. The average speed was calculated by dividing the flight distance in miles by the flight time in hours. Since air_time is recorded in minutes, it was divided by 60 to convert it to hours. The resulting avg_speed variable represents the average speed of each flight in miles per hour (mph).
+
+The distance variable is in miles, while air_time is in minutes. Therefore, we first convert air time from minutes to hours:
+air time in hours = air time / 60
+then:
+Avg_speed= distance /air time in hours
+
+
+Then:
+```{r Segmented bar plot}
+nycflights <- nycflights %>%
+  mutate(
+    avg_speed = distance / (air_time / 60)
+  )
+
+nycflights %>%
+  select(distance, air_time, avg_speed) %>%
+  head(10)
+```
+The plot shows that LGA has the greatest proportion of on-time departures, followed by JFK and EWR.
+
+### Excercise 8
+The scatterplot shows a generally positive relationship between distance and average speed. Longer flights tend to have higher average speeds. Short flights tend to have lower average speeds because fixed components such as takeoff, landing, and taxiing make up a larger proportion of their total travel time.
+
+```{r}
+ggplot(data = nycflights, aes(x = distance, y = avg_speed)) +
+  geom_point()
+```
+
+### Excercise 9
+Based on the original lab plot, a reasonable cutoff is about 45 minutes of departure delay
+
+
+```{r}
+
+carrier_flights <- nycflights %>%
+  filter(carrier %in% c("AA", "DL", "UA"))
+
+ggplot(data = carrier_flights,
+       aes(x = dep_delay, y = arr_delay, color = carrier)) +
+  geom_point() +
+  geom_vline(xintercept = 45, linetype = "dashed")
+```
+
