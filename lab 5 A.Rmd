@@ -1,0 +1,436 @@
+---
+title: "Lab 5a: Sampling Distribution"
+author: "Muhammad Imran"
+date: "`r Sys.Date()`"
+output: pdf_document
+      
+---
+
+##  Load packages
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+library(infer)
+```
+
+##  The data
+
+```{r}
+global_monitor <- tibble(
+  scientist_work = c(rep("Benefits", 80000), rep("Doesn't benefit", 20000))
+)
+```
+
+```{r}
+ggplot(global_monitor, aes(x = scientist_work)) +
+  geom_bar() +
+  labs(
+    x = "", y = "",
+    title = "Do you believe that the work scientists do benefit people like you?"
+  ) +
+  coord_flip() 
+```
+
+```{r}
+global_monitor %>%
+  count(scientist_work) %>%
+  mutate(p = n /sum(n))
+```
+
+## The unknown sampling distribution
+
+```{r}
+samp1 <- global_monitor %>%
+  sample_n(50)
+```
+
+
+### Exercise 1
+### Answer
+1. R Code to Summarize the Sample
+Run this code in your R console to calculate the counts and sample proportions for your random sample
+
+```{r}
+samp1 %>%  
+  count(scientist_work) %>%  
+  mutate(prop_sample = n / sum(n))
+```
+
+2. R Code to Visualize the Sample
+To visualize the distribution of responses in your sample using a bar plot:
+
+R
+
+```{r}
+ggplot(samp1, aes(x = scientist_work)) +  
+  geom_bar() +  
+  labs(    
+    x = "", 
+    y = "Count",    
+    title = "Sample Distribution (n = 50): Do you believe scientists' work benefits you?"  ) +  
+  coord_flip()
+```
+
+### Exercise 2
+
+### Answer:
+No, I would not expect another student’s sample proportion to match my exactly.
+
+Even though we both drew our samples of size $n = 50$ from the exact same population (global_monitor), random sampling ensures that each sample contains a completely different random set of individuals.
+
+### Why they differ: 
+This variation is due to sampling variability—the natural fluctuation that occurs simply by chance when taking random samples from a population.
+
+### Somewhat vs. Very Different: 
+I would expect our proportions to be somewhat different, not vastly different. Because our sample size is $n = 50$ and the true population proportion is $0.20$, the standard error is roughly $0.057$ ($5.7\%$). Most samples will hover reasonably close to the true $20\%$ mark (typically falling between $10\%$ and $30\%$), making exact matches uncommon.
+
+When checking with a student team, I expect to find that their sample proportion for "Doesn't benefit" is in the same general ballpark as mine, but likely off by a few percentage points.
+
+
+### Exercise 3
+
+### Comparing samp2 to samp1
+1. If I take a second random sample of size 50 (samp2), its sample proportion will differ from samp1 due to random sampling variability.
+ 
+ Even though both samples are drawn from the exact same population (where the true proportion is $0.20$), each sample captures a unique subset of individuals. However, because both have the same sample size ($n = 50$), I would expect samp2's proportion to be in the same general ballpark as samp1 (typically falling somewhere between $0.10$ and $0.30$).
+ 
+### 2. Sample Size 100 vs. 1000 for Accuracy
+
+If we took two more samples—; ne of size $n = 100$ and one of size $n = 1000$; the sample of size 1000 would provide a much more accurate estimate of the true population proportion.
+* Why? According to the mathematics of sampling distribution and standard error ($\text{SE} = \sqrt{\frac{p(1-p)}{n}}$), the standard error decreases as the sample size increases.
+* A larger sample size ($n = 1000$) significantly reduces sampling variability, meaning that repeated samples of size 1000 will cluster much more tightly and reliably around the true population proportion of $0.20$ compared to samples of size $50$ or $100$.
+
+```{R Take and Summarize samp2 (Size 50)}
+
+# Take a second random sample of size 50
+samp2 <- global_monitor %>% sample_n(50)
+
+# Calculate the sample proportion for samp2
+samp2 %>%  
+  count(scientist_work) %>%  
+  mutate(p_hat = n / sum(n))
+```
+
+
+```{r Take and Summarize Samples of Size 100 and 1000}
+# Take a sample of size 100
+samp_100 <- global_monitor %>% sample_n(100)
+samp_100 %>%  
+  count(scientist_work) %>%  
+  mutate(p_hat = n / sum(n))
+
+# Take a sample of size 1000
+samp_1000 <- global_monitor %>% sample_n(1000)
+samp_1000 %>%  
+  count(scientist_work) %>%  
+  mutate(p_hat = n / sum(n))
+```
+
+
+```{r if I try in one table}
+# Create samples of different sizes
+samp_50 <- global_monitor %>% sample_n(50)
+samp_100 <- global_monitor %>% sample_n(100)
+samp_1000 <- global_monitor %>% sample_n(1000)
+
+# Combine summaries into a single comparative table
+bind_rows(
+  samp_50 %>% count(scientist_work) %>% mutate(p_hat = n / sum(n), sample_size = 50),
+  samp_100 %>% count(scientist_work) %>% mutate(p_hat = n / sum(n), sample_size = 100),
+  samp_1000 %>% count(scientist_work) %>% mutate(p_hat = n / sum(n), sample_size = 1000)
+) %>%
+  filter(scientist_work == "Doesn't benefit") %>%
+  select(sample_size, n, p_hat)
+```
+
+
+
+
+```{r}
+sample_props50 <- global_monitor %>%
+                    rep_sample_n(size = 50, reps = 15000, replace = TRUE) %>%
+                    count(scientist_work) %>%
+                    mutate(p_hat = n /sum(n)) %>%
+                    filter(scientist_work == "Doesn't benefit")
+```
+
+```{r}
+ggplot(data = sample_props50, aes(x = p_hat)) +
+  geom_histogram(binwidth = 0.02) +
+  labs(
+    x = "p_hat (Doesn't benefit)",
+    title = "Sampling distribution of p_hat",
+    subtitle = "Sample size = 50, Number of samples = 15000"
+  )
+```
+
+
+### Exercise 4
+In my sample_props50 object, there are 15,000 elements (rows). This is because I specified 15,000 repetitions (reps = 15000) when running rep_sample_n, and then filtered the resulting data frame to keep only the single row corresponding to "Doesn't benefit" for each of those simulated samples.
+
+### Description of the Sampling DistributionShape and Spread: 
+
+* The distribution of sample proportions ($\hat{p}$) is unimodal, symmetric, and roughly bell-shaped. It illustrates how much sample proportions vary from sample to sample due to random sampling variability when using a sample size of $n = 50$. Most sample proportions cluster between $0.10$ and $0.30$.
+
+* Center: The center of this distribution is right around $0.20$. This confirms an important statistical principle: the mean of the sampling distribution centers precisely on the true population proportion ($p = 0.20$).
+
+
+
+##  Interlude: Sampling distributions
+```{r}
+global_monitor %>%
+  sample_n(size = 50, replace = TRUE) %>%
+  count(scientist_work) %>%
+  mutate(p_hat = n /sum(n)) %>%
+  filter(scientist_work == "Doesn't benefit")
+```
+
+
+### Exercise 5
+### Answer
+To solve this exercise, I need to modify the code provided in the lab prompt by changing the sample size (size) to 10, the number of repetitions (reps) to 25, and saving the result into an object named sample_props_small.
+
+
+```{r}
+sample_props_small <- global_monitor %>% 
+  rep_sample_n(size = 10, reps = 25, replace = TRUE) %>% 
+  count(scientist_work) %>% 
+  mutate(p_hat = n / sum(n)) %>% 
+  filter(scientist_work == "Doesn't benefit")
+
+# Print the output
+sample_props_small
+```
+
+### How many observations are there in this object called sample_props_small?Answer: 
+
+There are at most 25 observations (rows), though the exact number can sometimes be slightly fewer (e.g., between 20 and 25) depending on the random seed. This happens because reps = 25 creates 25 individual samples, but if a particular sample of size 10 randomly happens to include zero respondents who answered "Doesn't benefit", the filter() step will drop that replicate. 
+
+### What does each observation represent?Answer: 
+Each observation represents a single sample statistic—specifically, the sample proportion ($\hat{p}$) of people out of a small sample of size 10 who believe that the work scientists do "Doesn't benefit" them.
+
+
+##  Sample size and the sampling distribution
+
+```{r}
+ggplot(data = sample_props50, aes(x = p_hat)) +
+  geom_histogram(binwidth = 0.02)
+```
+
+
+### Exercise 6
+
+### Answer:
+
+
+```{r plot-prop-boys-present}
+# 1. Sampling distribution for n = 10
+sample_props_10 <- global_monitor %>% 
+  rep_sample_n(size = 10, reps = 5000, replace = TRUE) %>% 
+  count(scientist_work) %>% 
+  mutate(p_hat = n / sum(n)) %>% 
+  filter(scientist_work == "Doesn't benefit")
+
+# 2. Sampling distribution for n = 50
+sample_props_50 <- global_monitor %>% 
+  rep_sample_n(size = 50, reps = 5000, replace = TRUE) %>% 
+  count(scientist_work) %>% 
+  mutate(p_hat = n / sum(n)) %>% 
+  filter(scientist_work == "Doesn't benefit")
+
+# 3. Sampling distribution for n = 100
+sample_props_100 <- global_monitor %>% 
+  rep_sample_n(size = 100, reps = 5000, replace = TRUE) %>% 
+  count(scientist_work) %>% 
+  mutate(p_hat = n / sum(n)) %>% 
+  filter(scientist_work == "Doesn't benefit")
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Combine all three data frames and add a label column for sample size
+all_samples <- bind_rows(
+  mutate(sample_props_10, sample_size = "n = 10"),
+  mutate(sample_props_50, sample_size = "n = 50"),
+  mutate(sample_props_100, sample_size = "n = 100")
+)
+
+# Ensure sample_size is an ordered factor so they display in logical order
+all_samples$sample_size <- factor(all_samples$sample_size, levels = c("n = 10", "n = 50", "n = 100"))
+
+# Create the faceted histogram plot
+ggplot(data = all_samples, aes(x = p_hat, fill = sample_size)) +
+  geom_histogram(binwidth = 0.02, color = "white", alpha = 0.8) +
+  facet_wrap(~ sample_size, ncol = 1) +
+  labs(
+    title = "Comparison of Sampling Distributions by Sample Size",
+    subtitle = "5,000 simulations per sample size",
+    x = "Sample Proportion (p-hat)",
+    y = "Count"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+### Center (Mean): Unchanged.
+All distributions remain centered around the true population proportion because the sample proportion is an unbiased estimator.
+
+### Spread (Standard Error): Decreases.
+Larger sample sizes ($n=100$) reduce sampling variability, making the distribution narrower and more clustered than smaller samples ($n=10$).
+
+### Shape: Smoother and more normal. 
+Small samples ($n=10$) appear chunky and discrete, while larger samples ($n=100$) form a clean, bell-shaped normal curve.
+
+
+
+### Exercise 7
+
+### Answer:
+My best point estimate of the true population proportion is simply the sample proportion ($\hat{p}$) calculated from your specific sample of 15 people. Because sample statistics are unbiased estimators of population parameters, the proportion observed in a random sample serves as our best single-value guess for the entire population.
+
+```{r find-max-total}
+library(dplyr)
+
+# Take a random sample of size 15
+my_sample <- global_monitor %>% 
+  sample_n(size = 15)
+
+# Calculate the proportion of people whose response indicates 
+# that the work scientists do enhances their lives (adjust the filter text as needed)
+my_sample %>% 
+  count(scientist_work) %>% 
+  mutate(p_hat = n / sum(n))
+```
+
+
+### Excercise 8
+### Answer:
+
+```{r}
+global_monitor %>% distinct(scientist_work)
+```
+
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# 1. Simulate the sampling distribution for "Benefits" (n = 15, reps = 2000)
+sample_props15 <- global_monitor %>% 
+  rep_sample_n(size = 15, reps = 2000, replace = TRUE) %>% 
+  count(scientist_work) %>% 
+  mutate(p_hat = n / sum(n)) %>% 
+  filter(scientist_work == "Benefits") 
+
+# 2. Plot the sampling distribution
+p <- ggplot(data = sample_props15, aes(x = p_hat)) +  
+  geom_histogram(binwidth = 0.03, fill = "skyblue", color = "white") +
+  labs(
+    title = "Sampling Distribution of Proportions (n = 15, reps = 2,000)",
+    x = "Sample Proportion (p-hat)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+print(p)
+
+# 3. Calculate and report the true population proportion
+true_pop_prop <- global_monitor %>% 
+  count(scientist_work) %>% 
+  mutate(population_p = n / sum(n))
+
+print(true_pop_prop)
+```
+
+
+### Excercise 9
+
+### Answer:
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# 1. Simulate the sampling distribution for n = 150 (reps = 2000)
+sample_props150 <- global_monitor %>% 
+  rep_sample_n(size = 150, reps = 2000, replace = TRUE) %>% 
+  count(scientist_work) %>% 
+  mutate(p_hat = n / sum(n)) %>% 
+  filter(scientist_work == "Benefits") 
+
+# 2. Plot the sampling distribution
+p_150 <- ggplot(data = sample_props150, aes(x = p_hat)) +  
+  geom_histogram(binwidth = 0.01, fill = "lightgreen", color = "white") +
+  labs(
+    title = "Sampling Distribution of Proportions (n = 150, reps = 2,000)",
+    x = "Sample Proportion (p-hat)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+print(p_150)
+```
+
+### Answers to the Exercise Questions
+
+1. Describe the shape of this sampling distribution and compare it to the sample size of 15:
+
+* Shape: The sampling distribution for $n = 150$ is unimodal, symmetric, and approximately normal (bell-shaped). Unlike the chunky, discrete distribution seen with $n = 15$, this distribution is much smoother.
+* Comparison: Compared to the $n = 15$ distribution, the spread of the $n = 150$ distribution is significantly narrower. Because the sample size is 10 times larger, the standard error decreases substantially, meaning individual sample proportions cluster much more tightly around the center.
+@.  Based on this sampling distribution, what would you guess to be the true population proportion?
+
+* You would guess the true proportion to be right at the peak (center) of this distribution (which will closely mirror the true population proportion, typically around 0.80 or 80%), and this guess will be much more precise and have less uncertainty than the guess made from a sample size of 15.
+
+
+
+### Excerise 10
+### Answer
+
+Which sampling distribution has a smaller spread?
+
+The sampling distribution from step 3 (sample size of $n = 150$) has a significantly smaller spread than the one from step 2 ($n = 15$). As sample size increases, the variability (standard error) of the sample proportions decreases, causing the distribution to cluster more tightly around the center.
+
+Would you prefer a sampling distribution with a large or small spread?
+I would prefer a sampling distribution with a small spread. A smaller spread means that individual sample estimates are consistently closer to the true population value, reducing estimation error and increasing reliability.
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# 1. Calculate numerical spread (Standard Error) for n = 15
+spread_15 <- sample_props15 %>% 
+  summarise(sample_size = 15, sd_p_hat = sd(p_hat))
+
+# 2. Calculate numerical spread (Standard Error) for n = 150
+spread_150 <- sample_props150 %>% 
+  summarise(sample_size = 150, sd_p_hat = sd(p_hat))
+
+# Combine and print the spread comparison table
+bind_rows(spread_15, spread_150)
+
+# 3. Create a side-by-side or stacked visual comparison plot
+# First, combine the two datasets with labels
+combined_samples <- bind_rows(
+  mutate(sample_props15, sample_size = "n = 15"),
+  mutate(sample_props150, sample_size = "n = 150")
+)
+
+# Plot both distributions on the same scale
+ggplot(data = combined_samples, aes(x = p_hat, fill = sample_size)) +
+  geom_histogram(binwidth = 0.02, color = "white", alpha = 0.7) +
+  facet_wrap(~ sample_size, ncol = 1) +
+  labs(
+    title = "Comparison of Sampling Distribution Spreads",
+    subtitle = "Notice how much narrower the spread is for n = 150 compared to n = 15",
+    x = "Sample Proportion (p-hat)",
+    y = "Count"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+

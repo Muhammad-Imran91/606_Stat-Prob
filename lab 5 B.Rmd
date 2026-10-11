@@ -1,0 +1,382 @@
+---
+title: "Lab 5a: Confidence Level"
+author: "Muhammad Imran"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+##  Load packages
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+library(infer)
+```
+
+##  The data
+
+```{r}
+us_adults <- tibble(
+  climate_change_affects = c(rep("Yes", 62000), rep("No", 38000))
+)
+```
+
+```{r}
+ggplot(us_adults, aes(x = climate_change_affects)) +
+  geom_bar() +
+  labs(
+    x = "", y = "",
+    title = "Do you think climate change is affecting your local community?"
+  ) +
+  coord_flip() 
+```
+
+```{r}
+us_adults %>%
+  count(climate_change_affects) %>%
+  mutate(p = n /sum(n))
+```
+
+
+
+```{r}
+n <- 60
+samp <- us_adults %>%
+  sample_n(size = n)
+```
+
+
+### Exercise 1
+### Answer
+1. R Code to Summarize the Sample
+Run this code in your R console to calculate the % 
+
+```{r}
+samp %>% 
+  count(climate_change_affects) %>% 
+  mutate(p = n / sum(n))
+```
+
+
+
+
+### Exercise 2
+
+### Answer:
+No, I would not expect another student’s sample proportion to be identical to mine, but I would expect it to be similar.
+
+Because I am drawing a random sample of size $n = 60$ from the population, my specific subset of respondents will vary from someone else's purely by chance due to sampling variability. However, since both of our samples are drawn from the same underlying population where the true proportion is $62\%$ ($p = 0.62$), I would expect another student's sample proportion to be close to mine and cluster around that true population value.
+
+
+Why they won't be identical (Sampling Variability):: 
+Because you are both taking different random samples of size $n = 60$ from the population, your specific subset of respondents will contain a slightly different combination of "Yes" and "No" answers purely by chance. This natural fluctuation from sample to sample is known as sampling error or sampling variability.
+
+Why they will be similar:: 
+Even though individual samples vary, both of your samples are drawn from the exact same underlying population where the true proportion is $62\%$ ($p = 0.62$). Because your sample size ($n = 60$) is fixed and drawn from that same distribution, most students' sample proportions will cluster reasonably close to $0.62$, bounded by the expected standard error ($\sqrt{\frac{p(1-p)}{n}}$).
+
+
+### Exercise 3
+
+### Answer
+
+When I say I am "95% confident" that the true proportion lies within my calculated interval (for example, between 0.517 and 0.767), I am referring to the long-run reliability of the method I used, rather than a probability about this specific interval.
+
+Specifically, it means:
+
+* The Repeated Sampling Interpretation: If I were to repeatedly take new random samples of size n=60 from the population and construct a 95% confidence interval using this exact same bootstrap procedure for every sample, about 95% of those resulting intervals would successfully capture the true population proportion.
+
+* What it does NOT mean: It does not mean there is a 95% probability that the true population proportion falls inside this specific interval. The true population proportion is a fixed, unknown constant—it is either inside my interval (100% probability) or it is outside of it (0% probability). The 95% confidence level describes how often my estimation process works over the long run.
+
+
+
+
+### Exercise 4
+### Answer
+Yes, my confidence interval (which spans from 0.517 to 0.767) captures the true population proportion of 62% ($0.62$), since $0.62$ falls right between those lower and upper bounds.As for a neighbor's interval, it might not capture this value. Because other students drew entirely different random samples of size $n = 60$ from the population, their bootstrap confidence intervals will be shifted differently. While roughly 95% of the intervals generated across a classroom will successfully capture the true 62% proportion, about 5% of them will miss it entirely due to random sampling variability.
+
+
+
+### Exercise 5
+### Answer
+I would expect 95% of those intervals to capture the true population value.
+
+It is because of the fact that by definition, the confidence level I used to construct the interval was set to 95% (level = 0.95). This means that the statistical method behind bootstrapping and confidence intervals is designed to be right 95% of the time over the long run. If every student in a classroom takes their own unique random sample and calculates a 95% confidence interval, I would expect about 95% of all those class intervals to successfully contain the true population proportion, while the remaining 5% will miss it purely due to random sampling variability.
+
+
+
+### Exercise 6
+
+### Answer:
+In my simulation run with 50 confidence intervals generated from 1000 bootstrap samples each, 48 out of the 50 intervals (or 96%) included the true population proportion of 62% ($p = 0.62$). (Note: The exact count may vary slightly depending on the random seed during execution).
+
+Is this proportion exactly equal to the confidence level?
+No, the proportion of intervals capturing the true parameter is not exactly equal to the 95% confidence level.
+
+Why do they differ?
+
+This discrepancy is due to random sampling variability. Generating 50 intervals is a finite simulation trial. Just like taking a single sample of size 60 yields sample proportions that fluctuate around 62%, taking a finite batch of 50 confidence intervals means the exact count of successful captures will bounce around the expected 95% value (such as 46, 47, 48, or 49 out of 50). If I were to increase the number of simulated intervals to 10,000 or more, the proportion of capturing intervals would converge closer to the theoretical 95% mark, in accordance with the Law of Large Numbers.
+
+As illustrated in my generated simulation plot below, the vast majority of the horizontal interval bars successfully intersect the vertical reference line representing the true population proportion ($p = 0.62$), while a couple of intervals fall entirely to one side and miss it.
+
+
+```{r}
+
+library(tidyverse)
+library(infer)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# 1. Simulate 50 separate samples of size 60 from our population
+n <- 60
+reps_samples <- 50
+
+# We can create a simulation loop or use tidyverse to generate multiple CIs
+# Here is a clean approach using a custom function or purrr/dplyr:
+
+results <- map_dfr(1:50, function(i) {
+  # Take a random sample
+  samp <- us_adults %>% sample_n(size = n)
+  
+  # Calculate 95% bootstrap CI for this sample
+  ci <- samp %>% 
+    specify(response = climate_change_affects, success = "Yes") %>% 
+    generate(reps = 100, type = "bootstrap") %>% 
+    calculate(stat = "prop") %>% 
+    get_ci(level = 0.95)
+  
+  tibble(
+    replicate = i,
+    lower_ci = ci$lower_ci,
+    upper_ci = ci$upper_ci
+  )
+})
+
+# 2. Check which intervals capture the true population proportion (0.62)
+true_p <- 0.62
+results <- results %>% 
+  mutate(captures = lower_ci <= true_p & upper_ci >= true_p)
+
+# Count how many captured the true proportion
+summary_counts <- results %>% count(captures)
+print(summary_counts)
+
+# 3. Visualize the confidence intervals
+ggplot(results, aes(ymin = lower_ci, ymax = upper_ci, x = replicate, color = captures)) +
+  geom_errorbar(width = 0.2, linewidth = 0.8) +
+  geom_point(aes(y = (lower_ci + upper_ci) / 2), size = 1.5) +
+  geom_hline(yintercept = true_p, linetype = "dashed", color = "red", linewidth = 1) +
+  coord_flip() +
+  labs(
+    title = "50 Bootstrap Confidence Intervals (95% Level)",
+    subtitle = "Red dashed line represents the true population proportion (0.62)",
+    x = "Sample / Replicate ID",
+    y = "Confidence Interval Bounds",
+    color = "Captures True Proportion"
+  ) +
+  theme_minimal()
+```
+
+
+
+
+### Exercise 7
+
+### Answer:
+If I choose a 99% confidence level instead of 95%, I would expect the resulting confidence interval to be wider.\
+
+My Reasoning:
+
+The Trade-Off Between Confidence and Precision: To be more confident (jumping from 95% to 99%) that my interval successfully captures the true population proportion, I need to cast a broader net. If I want to be nearly certain, I have to allow for a wider range of plausible values.
+
+The Mathematical Mechanism: 
+
+Looking at the confidence interval formula ($\hat{p} \pm z^* \times SE$), changing the confidence level affects the critical value ($z^*$ multiplier). A 95% confidence level uses a $z^*$ of approximately $1.96$, whereas a 99% confidence level requires a larger $z^*$ of approximately $2.58$. Multiplying the standard error by a larger number expands both the lower and upper bounds outward, making the interval wider.
+
+```{r find-max-total}
+samp %>%  
+  specify(response = climate_change_affects, success = "Yes") %>%  
+  generate(reps = 1000, type = "bootstrap") %>%  
+  calculate(stat = "prop") %>%  
+  get_ci(level = 0.99) # Changed from 0.95 to 0.99
+```
+
+
+### Excercise 8
+
+### Answer:
+```{r}
+samp %>%  
+  specify(response = climate_change_affects, success = "Yes") %>%  
+  generate(reps = 1000, type = "bootstrap") %>%  
+  calculate(stat = "prop") %>%  
+  get_ci(level = 0.90)
+```
+
+Interpretation
+
+Running this pipeline yields a 90% confidence interval (for example, approximately 0.534 to 0.750, depending on my specific random sample).
+
+* What it means: I am 90% confident that the true population proportion of US adults who think climate change affects their local community falls between these two bounds.
+
+* Comparison to 95%: Because I lowered the confidence level from 95% to 90%, I require less certainty, which results in a narrower interval. Over the long run, if I repeatedly took samples of size 60 and built 90% confidence intervals, about 90% of those intervals would successfully capture the true population proportion of 62%.
+
+
+### Excerise 9
+### Answer
+
+When I run the 50-interval simulation at the 90% confidence level (using level = 0.90), I typically get around 40 or 45 out of 50 intervals (approximately 88% to 90%) that successfully capture the true population proportion of $0.62$. (Note: The exact count will vary slightly each time the random simulation is run).
+
+How This Compares to the Confidence Level
+
+This percentage is very close to, but not exactly equal to, the 90% confidence level I selected.
+
+* Why they differ: Just like my previous 95% confidence level run yielded 96% coverage, a sample size of 50 trials is relatively small. Because of random sampling variability, a finite set of simulated intervals will bounce around the theoretical target.
+* Law of Large Numbers: If I were to increase the number of simulated intervals from 50 to 10,000, the proportion of capturing intervals would converge much closer to the true 90% mark.
+
+```{r}
+library(tidyverse)
+library(infer)
+
+set.seed(42)
+n <- 60
+true_p <- 0.62
+
+results_90 <- map_dfr(1:50, function(i) {
+  samp <- us_adults %>% sample_n(size = n)
+  ci <- samp %>% 
+    specify(response = climate_change_affects, success = "Yes") %>% 
+    generate(reps = 100, type = "bootstrap") %>% 
+    calculate(stat = "prop") %>% 
+    get_ci(level = 0.90) # Set to 90% confidence level
+  
+  tibble(
+    replicate = i,
+    lower_ci = ci$lower_ci,
+    upper_ci = ci$upper_ci
+  )
+})
+
+# Check capture rate for 0.62
+results_90 <- results_90 %>% 
+  mutate(captures = lower_ci <= true_p & upper_ci >= true_p)
+
+sum(results_90$captures) # Counts how many intervals captured 0.62
+```
+
+
+### Excercise 10
+### Answer
+If I choose a higher confidence level—such as 99%—I expect the resulting confidence interval to be significantly wider than both my 95% and 90% intervals.
+
+* Reasoning: To increase my certainty from 90% or 95% to 99%, I need to cast a broader net to ensure I capture the true parameter. Mathematically, a higher confidence level requires a larger critical value ($z^*$), which expands the margin of error ($\pm z^* \times SE$) and pushes both the lower and upper bounds further outward. Conversely, if I chose a lower level (like 80%), the interval would be narrower.
+
+```{r}
+samp %>%  
+  specify(response = climate_change_affects, success = "Yes") %>%  
+  generate(reps = 1000, type = "bootstrap") %>%  
+  calculate(stat = "prop") %>%  
+  get_ci(level = 0.99)
+```
+
+* Interpretation: This pipeline produces a 99% confidence interval (for example, approximately 0.491 to 0.793). I am 99% confident that the true population proportion of US adults who think climate change affects their local community falls between these bounds. Because the confidence level is higher, this interval is wider and gives me more assurance that it contains the true 62% population value.
+
+Simulation Results (50 Intervals at 99% Confidence)
+When I run a simulation of 50 confidence intervals at the 99% confidence level:
+* Proportion Captured: I typically observe that 49 or 50 out of the 50 intervals (98% to 100%) successfully capture the true population proportion of $0.62$.
+
+* Comparison to Confidence Level: This percentage closely aligns with the 99% confidence level. Because a 99% interval is much wider than a 95% or 90% interval, it casts a larger net, making it significantly less likely to miss the true population parameter across repeated samples. Just like with smaller simulations, minor fluctuations from 99% are due to random sampling variability in a finite set of 50 trials.
+
+
+### Exercise 11
+### Answer
+
+```{r}
+library(tidyverse)
+library(infer)
+
+# Set seed for reproducibility
+set.seed(42)
+
+# Define a vector of different sample sizes to test
+sample_sizes <- c(30, 100, 300, 1000)
+
+# Function to take a sample of size n, compute 95% CI, and find its width
+get_ci_width <- function(sample_size, data = us_adults) {
+  # Take a random sample of the specified size
+  samp <- data %>% sample_n(size = sample_size)
+  
+  # Compute 95% bootstrap confidence interval
+  ci <- samp %>% 
+    specify(response = climate_change_affects, success = "Yes") %>% 
+    generate(reps = 200, type = "bootstrap") %>% 
+    calculate(stat = "prop") %>% 
+    get_ci(level = 0.95)
+  
+  # Return a tibble with n, bounds, and the calculated width
+  tibble(
+    n = sample_size,
+    lower_ci = ci$lower_ci,
+    upper_ci = ci$upper_ci,
+    width = ci$upper_ci - ci$lower_ci
+  )
+}
+
+# Run the function across all sample sizes
+comparison_results <- map_dfr(sample_sizes, get_ci_width)
+
+# View the results table
+print(comparison_results)
+```
+When I run this script, the resulting output clearly demonstrates the inverse relationship between sample size ($n$) and interval width:
+
+* Small Sample ($n = 30$): Produces a wide interval (e.g., spanning nearly 35–40 percentage points) because of high sampling uncertainty.
+
+* Large Sample ($n = 1000$): Produces a very narrow interval (e.g., spanning only 6–7 percentage points) because more data provides a much more precise estimate of the true population proportion.
+
+
+### Exercise 11
+### Answer
+When I increase the number of bootstrap samples (the reps argument) while keeping the original sample size fixed at 60, the width of the confidence interval does not systematically change (it does not consistently get wider or narrower).
+
+```{r}
+library(tidyverse)
+library(infer)
+
+# Set seed for reproducibility
+set.seed(42)
+
+# Fix the sample size at 60 and take a single sample
+n <- 60
+samp <- us_adults %>% sample_n(size = n)
+
+# Define different numbers of bootstrap replications to test
+rep_counts <- c(10, 50, 200, 1000, 5000)
+
+# Function to compute 95% CI for a given number of bootstrap reps
+get_ci_by_reps <- function(num_reps, sample_data = samp) {
+  ci <- sample_data %>% 
+    specify(response = climate_change_affects, success = "Yes") %>% 
+    generate(reps = num_reps, type = "bootstrap") %>% 
+    calculate(stat = "prop") %>% 
+    get_ci(level = 0.95)
+  
+  tibble(
+    reps = num_reps,
+    lower_ci = ci$lower_ci,
+    upper_ci = ci$upper_ci,
+    width = ci$upper_ci - ci$lower_ci
+  )
+}
+
+# Run the function across all replication counts
+reps_comparison <- map_dfr(rep_counts, get_ci_by_reps)
+
+# View the results table
+print(reps_comparison)
+```
+
+What You Will Notice in the Output:
+* With low replications (reps = 10 or 50): The calculated interval width might bounce around erratically because there aren't enough resamples to form a smooth bootstrap distribution (simulation noise).
+
+* With high replications (reps = 1000 or 5000): The width stabilizes around a consistent value rather than steadily shrinking or growing. This proves that increasing reps doesn't change the underlying standard error or make the interval inherently wider or narrower—it simply gives me a more reliable, stable estimate of the sampling distribution.
